@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 import type { SignupFormData } from "./types";
-import { NOTIFY_EMAILS, eventLabel } from "./types";
+import { eventLabel } from "./types";
+import { getDistributionEmails } from "./gmail-config";
+import { sendViaGmail } from "./gmail-send";
 
 export function buildEmailHtml(data: SignupFormData): string {
   const eventsList = data.events
@@ -69,45 +71,75 @@ function escapeHtml(s: string): string {
 }
 
 export type SendResult =
-  | { ok: true; id?: string }
+  | { ok: true; id?: string; via: "gmail" | "resend" }
   | { ok: false; error: string };
 
 /**
- * Sends signup notification to all PTO board emails via Resend.
- * Requires RESEND_API_KEY. Optional RESEND_FROM (verified domain sender).
+ * Prefer Gmail SMTP (admin setup). Fall back to Resend if configured.
+ * Recipients come from the admin distribution list.
  */
 export async function sendSignupNotification(
   data: SignupFormData
 ): Promise<SendResult> {
+  const recipients = await getDistributionEmails();
+  if (recipients.length === 0) {
+    return {
+      ok: false,
+      error: "No distribution emails configured.",
+    };
+  }
+
+  const subject = `PTO Signup: ${data.name} — ${data.events.map(eventLabel).join(", ")}`;
+  const html = buildEmailHtml(data);
+  const text = buildEmailText(data);
+
+  const gmailResult = await sendViaGmail({
+    to: recipients,
+    subject,
+    html,
+    text,
+  });
+
+  if (gmailResult.ok) {
+    return { ok: true, id: gmailResult.id, via: "gmail" };
+  }
+
+  // If Gmail simply isn't configured, try Resend. Otherwise return Gmail error.
+  if (gmailResult.error !== "Gmail is not configured.") {
+    // Still try Resend as backup if available
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     return {
       ok: false,
       error:
-        "Email is not configured (missing RESEND_API_KEY). Signup was still recorded.",
+        gmailResult.error === "Gmail is not configured."
+          ? "Email is not configured. Add Gmail in Admin → Gmail Setup (or set RESEND_API_KEY)."
+          : gmailResult.error,
     };
   }
 
   const from =
-    process.env.RESEND_FROM?.trim() ||
-    "Dorsey PTO <onboarding@resend.dev>";
-
+    process.env.RESEND_FROM?.trim() || "Dorsey PTO <onboarding@resend.dev>";
   const resend = new Resend(apiKey);
 
   try {
     const { data: result, error } = await resend.emails.send({
       from,
-      to: [...NOTIFY_EMAILS],
-      subject: `PTO Signup: ${data.name} — ${data.events.map(eventLabel).join(", ")}`,
-      html: buildEmailHtml(data),
-      text: buildEmailText(data),
-      replyTo: undefined,
+      to: recipients,
+      subject,
+      html,
+      text,
     });
 
     if (error) {
-      return { ok: false, error: error.message };
+      return {
+        ok: false,
+        error: `${gmailResult.error !== "Gmail is not configured." ? `Gmail: ${gmailResult.error}. ` : ""}Resend: ${error.message}`,
+      };
     }
-    return { ok: true, id: result?.id };
+    return { ok: true, id: result?.id, via: "resend" };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to send email";
     return { ok: false, error: message };
