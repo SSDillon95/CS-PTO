@@ -14,23 +14,13 @@ export default function HomePage() {
 
   function handleSuccess(
     _data: SignupFormData,
-    emailSent: boolean,
-    emailError?: string
+    _emailSent?: boolean,
+    _emailError?: string
   ) {
-    if (emailSent) {
-      setBanner({
-        type: "success",
-        message:
-          "Thank you! Your signup was submitted and emailed to the PTO board.",
-      });
-    } else {
-      setBanner({
-        type: "warning",
-        message: emailError
-          ? `Signup received, but email could not be sent: ${emailError}`
-          : "Signup received, but email could not be sent. Please contact the PTO board directly.",
-      });
-    }
+    setBanner({
+      type: "success",
+      message: "Thank you! Your signup was submitted successfully.",
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -87,8 +77,6 @@ export default function HomePage() {
 
       <footer className="mt-12 border-t border-stone-200 pt-6 text-center text-xs text-stone-400">
         Dorsey Attendance Center · Parent Teacher Organization
-        <br />
-        Signups are emailed to the PTO board automatically.
       </footer>
     </div>
   );

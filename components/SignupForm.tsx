@@ -226,7 +226,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
       </button>
 
       <p className="mt-4 text-center text-xs text-stone-400">
-        Once completed, your signup is emailed to the PTO board.
+        Thank you for supporting the Dorsey PTO.
       </p>
     </form>
   );
