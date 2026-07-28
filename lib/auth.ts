@@ -1,12 +1,12 @@
 import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "crypto";
+import {
+  getAdminUsername,
+  verifyAdminCredentials,
+} from "./admin-credentials";
 
 const COOKIE_NAME = "dorsey_pto_admin";
 const SESSION_DAYS = 7;
-
-/** Admin credentials (server-only). Override with env in production if desired. */
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "Hopalong";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Cassity";
 
 function sessionSecret(): string {
   return (
@@ -49,25 +49,11 @@ function verifyToken(token: string): { username: string } | null {
   return { username };
 }
 
-function safeEqual(a: string, b: string): boolean {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ba.length !== bb.length) {
-    // still run a compare to reduce timing leaks on length
-    timingSafeEqual(ba, ba);
-    return false;
-  }
-  return timingSafeEqual(ba, bb);
-}
-
-export function validateCredentials(
+export async function validateCredentials(
   username: string,
   password: string
-): boolean {
-  return (
-    safeEqual(username.trim(), ADMIN_USERNAME) &&
-    safeEqual(password, ADMIN_PASSWORD)
-  );
+): Promise<boolean> {
+  return verifyAdminCredentials(username, password);
 }
 
 export async function createSession(username: string): Promise<void> {
@@ -104,3 +90,5 @@ export async function getSession(): Promise<{ username: string } | null> {
 export async function requireSession(): Promise<{ username: string } | null> {
   return getSession();
 }
+
+export { getAdminUsername };

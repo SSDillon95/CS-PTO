@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import AccountSettingsPanel from "@/components/AccountSettingsPanel";
 import EventsManagerPanel from "@/components/EventsManagerPanel";
 import GmailSetupPanel from "@/components/GmailSetupPanel";
 import QrSharePanel from "@/components/QrSharePanel";
 import type { SignupEntry } from "@/lib/types";
 
-type AdminTab = "signups" | "events" | "gmail" | "qr";
+type AdminTab = "signups" | "events" | "gmail" | "qr" | "account";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -172,6 +173,17 @@ export default function AdminPage() {
         >
           QR code
         </button>
+        <button
+          type="button"
+          onClick={() => setTab("account")}
+          className={`min-w-[6rem] flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+            tab === "account"
+              ? "bg-stone-900 text-[#f5e6a8]"
+              : "text-stone-600 hover:bg-stone-50"
+          }`}
+        >
+          Account
+        </button>
       </nav>
 
       {toast && (
@@ -199,6 +211,11 @@ export default function AdminPage() {
         <EventsManagerPanel onNotify={notify} />
       ) : tab === "qr" ? (
         <QrSharePanel onNotify={notify} />
+      ) : tab === "account" ? (
+        <AccountSettingsPanel
+          onNotify={notify}
+          onUsernameChanged={(name) => setUsername(name)}
+        />
       ) : (
         <>
           <div className="mb-4 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-600 shadow-sm">
