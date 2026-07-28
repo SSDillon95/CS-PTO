@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import EventsManagerPanel from "@/components/EventsManagerPanel";
 import GmailSetupPanel from "@/components/GmailSetupPanel";
 import type { SignupEntry } from "@/lib/types";
 
-type AdminTab = "signups" | "gmail";
+type AdminTab = "signups" | "events" | "gmail";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -125,11 +126,11 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <nav className="mb-6 flex gap-1 rounded-xl border border-stone-200 bg-white p-1 shadow-sm">
+      <nav className="mb-6 flex flex-wrap gap-1 rounded-xl border border-stone-200 bg-white p-1 shadow-sm">
         <button
           type="button"
           onClick={() => setTab("signups")}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+          className={`min-w-[6rem] flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
             tab === "signups"
               ? "bg-stone-900 text-[#f5e6a8]"
               : "text-stone-600 hover:bg-stone-50"
@@ -139,8 +140,19 @@ export default function AdminPage() {
         </button>
         <button
           type="button"
+          onClick={() => setTab("events")}
+          className={`min-w-[6rem] flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+            tab === "events"
+              ? "bg-stone-900 text-[#f5e6a8]"
+              : "text-stone-600 hover:bg-stone-50"
+          }`}
+        >
+          Events
+        </button>
+        <button
+          type="button"
           onClick={() => setTab("gmail")}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+          className={`min-w-[6rem] flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
             tab === "gmail"
               ? "bg-stone-900 text-[#f5e6a8]"
               : "text-stone-600 hover:bg-stone-50"
@@ -171,6 +183,8 @@ export default function AdminPage() {
 
       {tab === "gmail" ? (
         <GmailSetupPanel onNotify={notify} />
+      ) : tab === "events" ? (
+        <EventsManagerPanel onNotify={notify} />
       ) : (
         <>
           <div className="mb-4 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-600 shadow-sm">

@@ -1,8 +1,9 @@
 import { promises as fs } from "fs";
 import path from "path";
 import type { SignupEntry } from "./types";
-import { eventLabel, type SignupFormData } from "./types";
+import type { SignupFormData } from "./types";
 import { randomUUID } from "crypto";
+import { resolveEventLabels } from "./events-store";
 
 function storePath(): string {
   if (process.env.VERCEL) {
@@ -34,13 +35,15 @@ export async function listSignups(): Promise<SignupEntry[]> {
 
 export async function addSignup(
   data: SignupFormData,
-  emailSent: boolean
+  emailSent: boolean,
+  eventLabels?: string[]
 ): Promise<SignupEntry> {
   const entries = await readAll();
+  const labels = eventLabels ?? (await resolveEventLabels(data.events));
   const entry: SignupEntry = {
     id: randomUUID(),
     ...data,
-    eventLabels: data.events.map(eventLabel),
+    eventLabels: labels,
     createdAt: new Date().toISOString(),
     emailSent,
   };
@@ -48,6 +51,7 @@ export async function addSignup(
   await writeAll(entries);
   return entry;
 }
+
 
 export async function deleteSignup(id: string): Promise<boolean> {
   const entries = await readAll();

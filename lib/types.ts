@@ -1,23 +1,37 @@
-export const EVENTS = [
+export interface EventOption {
+  id: string;
+  label: string;
+  /** When false, hidden from the public form (kept for existing signups). Default true. */
+  active: boolean;
+}
+
+export const DEFAULT_EVENTS: EventOption[] = [
   {
     id: "bulldog-bites",
     label: "Bulldog Bites - During School Day",
+    active: true,
   },
   {
     id: "fall-festival",
     label: "Fall Festival - After School",
+    active: true,
   },
   {
     id: "bulldog-boutique",
     label: "Bulldog Boutique - During School Day",
+    active: true,
   },
   {
     id: "additional",
     label: "Additional Events - During & After School Hours",
+    active: true,
   },
-] as const;
+];
 
-export type EventId = (typeof EVENTS)[number]["id"];
+/** @deprecated use DEFAULT_EVENTS / listEvents() */
+export const EVENTS = DEFAULT_EVENTS;
+
+export type EventId = string;
 
 export interface SignupFormData {
   name: string;
@@ -56,8 +70,3 @@ export const DISTRIBUTION_CONTACTS: DistributionContact[] = [
   { email: "mhmitchell@itawambacountyschools.com", label: "M.H. Mitchell" },
   { email: "kameroneskew@yahoo.com", label: "Kameron Eskew" },
 ];
-
-
-export function eventLabel(id: string): string {
-  return EVENTS.find((e) => e.id === id)?.label ?? id;
-}

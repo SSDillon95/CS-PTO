@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
-import { EVENTS, type EventId, type SignupFormData } from "@/lib/types";
+import type { SignupFormData } from "@/lib/types";
 import { sendSignupNotification } from "@/lib/email";
 import { addSignup } from "@/lib/signups-store";
-
-const EVENT_IDS = new Set(EVENTS.map((e) => e.id));
-
-function isEventId(v: unknown): v is EventId {
-  return typeof v === "string" && EVENT_IDS.has(v as EventId);
-}
+import { listActiveEvents, resolveEventLabels } from "@/lib/events-store";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -27,7 +22,13 @@ export async function POST(request: Request) {
   const childNameGrade =
     typeof raw.childNameGrade === "string" ? raw.childNameGrade.trim() : "";
   const eventsRaw = Array.isArray(raw.events) ? raw.events : [];
-  const events = eventsRaw.filter(isEventId);
+  const requested = eventsRaw.filter(
+    (v): v is string => typeof v === "string" && v.trim().length > 0
+  );
+
+  const active = await listActiveEvents();
+  const activeIds = new Set(active.map((e) => e.id));
+  const events = requested.filter((id) => activeIds.has(id));
 
   if (!name) {
     return NextResponse.json({ error: "Name is required." }, { status: 400 });
@@ -52,11 +53,12 @@ export async function POST(request: Request) {
   }
 
   const data: SignupFormData = { name, phone, childNameGrade, events };
-  const emailResult = await sendSignupNotification(data);
+  const eventLabels = await resolveEventLabels(events);
+  const emailResult = await sendSignupNotification(data, eventLabels);
 
   let entryId: string | undefined;
   try {
-    const entry = await addSignup(data, emailResult.ok);
+    const entry = await addSignup(data, emailResult.ok, eventLabels);
     entryId = entry.id;
   } catch {
     // still return success for the volunteer if email/store partially works
@@ -70,4 +72,3 @@ export async function POST(request: Request) {
     emailId: emailResult.ok ? emailResult.id : undefined,
   });
 }
-

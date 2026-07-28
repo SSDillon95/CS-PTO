@@ -1,12 +1,15 @@
 import { Resend } from "resend";
 import type { SignupFormData } from "./types";
-import { eventLabel } from "./types";
 import { getDistributionEmails } from "./gmail-config";
 import { sendViaGmail } from "./gmail-send";
+import { resolveEventLabels } from "./events-store";
 
-export function buildEmailHtml(data: SignupFormData): string {
-  const eventsList = data.events
-    .map((id) => `<li>${escapeHtml(eventLabel(id))}</li>`)
+export function buildEmailHtml(
+  data: SignupFormData,
+  eventLabels: string[]
+): string {
+  const eventsList = eventLabels
+    .map((label) => `<li>${escapeHtml(label)}</li>`)
     .join("");
 
   return `
@@ -47,8 +50,11 @@ export function buildEmailHtml(data: SignupFormData): string {
 </html>`.trim();
 }
 
-export function buildEmailText(data: SignupFormData): string {
-  const events = data.events.map((id) => `  - ${eventLabel(id)}`).join("\n");
+export function buildEmailText(
+  data: SignupFormData,
+  eventLabels: string[]
+): string {
+  const events = eventLabels.map((label) => `  - ${label}`).join("\n");
   return [
     "Dorsey Attendance Center PTO — New Volunteer Signup",
     "",
@@ -79,7 +85,8 @@ export type SendResult =
  * Recipients come from the admin distribution list.
  */
 export async function sendSignupNotification(
-  data: SignupFormData
+  data: SignupFormData,
+  eventLabels?: string[]
 ): Promise<SendResult> {
   const recipients = await getDistributionEmails();
   if (recipients.length === 0) {
@@ -89,9 +96,11 @@ export async function sendSignupNotification(
     };
   }
 
-  const subject = `PTO Signup: ${data.name} — ${data.events.map(eventLabel).join(", ")}`;
-  const html = buildEmailHtml(data);
-  const text = buildEmailText(data);
+  const labels =
+    eventLabels ?? (await resolveEventLabels(data.events));
+  const subject = `PTO Signup: ${data.name} — ${labels.join(", ")}`;
+  const html = buildEmailHtml(data, labels);
+  const text = buildEmailText(data, labels);
 
   const gmailResult = await sendViaGmail({
     to: recipients,
@@ -102,11 +111,6 @@ export async function sendSignupNotification(
 
   if (gmailResult.ok) {
     return { ok: true, id: gmailResult.id, via: "gmail" };
-  }
-
-  // If Gmail simply isn't configured, try Resend. Otherwise return Gmail error.
-  if (gmailResult.error !== "Gmail is not configured.") {
-    // Still try Resend as backup if available
   }
 
   const apiKey = process.env.RESEND_API_KEY;

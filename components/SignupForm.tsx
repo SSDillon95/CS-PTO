@@ -1,21 +1,47 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { EVENTS, type EventId, type SignupFormData } from "@/lib/types";
+import { useEffect, useState, type FormEvent } from "react";
+import type { EventOption, SignupFormData } from "@/lib/types";
 
 interface SignupFormProps {
-  onSuccess: (data: SignupFormData, emailSent: boolean, emailError?: string) => void;
+  onSuccess: (
+    data: SignupFormData,
+    emailSent: boolean,
+    emailError?: string
+  ) => void;
 }
 
 export default function SignupForm({ onSuccess }: SignupFormProps) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [childNameGrade, setChildNameGrade] = useState("");
-  const [events, setEvents] = useState<EventId[]>([]);
+  const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [events, setEvents] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function toggleEvent(id: EventId) {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/events", { cache: "no-store" });
+        const json = (await res.json()) as { events?: EventOption[] };
+        if (!cancelled) {
+          setEventOptions(json.events || []);
+        }
+      } catch {
+        if (!cancelled) setEventOptions([]);
+      } finally {
+        if (!cancelled) setEventsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function toggleEvent(id: string) {
     setEvents((prev) =>
       prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]
     );
@@ -129,7 +155,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
 
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold text-stone-800">
-            Child&apos;s Name &amp; Grade <span className="text-red-600">*</span>
+            Child&apos;s Name &amp; Grade{" "}
+            <span className="text-red-600">*</span>
           </span>
           <input
             type="text"
@@ -145,31 +172,39 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           <legend className="mb-3 text-sm font-semibold text-stone-800">
             Events to Help In <span className="text-red-600">*</span>
           </legend>
-          <div className="space-y-3">
-            {EVENTS.map((event) => {
-              const checked = events.includes(event.id);
-              return (
-                <label
-                  key={event.id}
-                  className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 px-4 py-3 transition ${
-                    checked
-                      ? "border-[#c9a227] bg-[#faf6e8]"
-                      : "border-stone-200 bg-stone-50 hover:border-stone-300"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleEvent(event.id)}
-                    className="mt-1 h-4 w-4 rounded border-stone-400 text-[#c9a227] focus:ring-[#c9a227]"
-                  />
-                  <span className="text-sm font-medium text-stone-800">
-                    {event.label}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
+          {eventsLoading ? (
+            <p className="text-sm text-stone-500">Loading events…</p>
+          ) : eventOptions.length === 0 ? (
+            <p className="text-sm text-stone-500">
+              No events are available right now. Please check back later.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {eventOptions.map((event) => {
+                const checked = events.includes(event.id);
+                return (
+                  <label
+                    key={event.id}
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 px-4 py-3 transition ${
+                      checked
+                        ? "border-[#c9a227] bg-[#faf6e8]"
+                        : "border-stone-200 bg-stone-50 hover:border-stone-300"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleEvent(event.id)}
+                      className="mt-1 h-4 w-4 rounded border-stone-400 text-[#c9a227] focus:ring-[#c9a227]"
+                    />
+                    <span className="text-sm font-medium text-stone-800">
+                      {event.label}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </fieldset>
       </div>
 
@@ -184,7 +219,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || eventsLoading || eventOptions.length === 0}
         className="mt-8 w-full rounded-xl bg-stone-900 px-5 py-3.5 text-sm font-bold uppercase tracking-wider text-[#f5e6a8] shadow transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#c9a227] focus:ring-offset-2"
       >
         {submitting ? "Submitting…" : "Submit Sign Up"}
