@@ -41,6 +41,7 @@ export default function GmailSetupPanel({ onNotify }: GmailSetupPanelProps) {
   const [status, setStatus] = useState<GmailSetupStatus | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [distribution, setDistribution] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState("");
   const [loading, setLoading] = useState(true);
@@ -316,24 +317,34 @@ export default function GmailSetupPanel({ onNotify }: GmailSetupPanelProps) {
                 autoComplete="off"
               />
             </label>
-            <label className="block">
+            <div className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-600">
                 Password / App Password
               </span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={
-                  status?.hasPassword
-                    ? "Leave blank to keep current password"
-                    : "App password"
-                }
-                className={inputClass}
-                required={!status?.hasPassword}
-                autoComplete="new-password"
-              />
-            </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={
+                    status?.hasPassword
+                      ? "Leave blank to keep current password"
+                      : "App password"
+                  }
+                  className={`${inputClass} pr-16`}
+                  required={!status?.hasPassword}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
           </div>
 
           {status?.configured && (
