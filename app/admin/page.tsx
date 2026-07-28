@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import EventsManagerPanel from "@/components/EventsManagerPanel";
 import GmailSetupPanel from "@/components/GmailSetupPanel";
+import QrSharePanel from "@/components/QrSharePanel";
 import type { SignupEntry } from "@/lib/types";
 
-type AdminTab = "signups" | "events" | "gmail";
+type AdminTab = "signups" | "events" | "gmail" | "qr";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -160,6 +161,17 @@ export default function AdminPage() {
         >
           Gmail setup
         </button>
+        <button
+          type="button"
+          onClick={() => setTab("qr")}
+          className={`min-w-[6rem] flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+            tab === "qr"
+              ? "bg-stone-900 text-[#f5e6a8]"
+              : "text-stone-600 hover:bg-stone-50"
+          }`}
+        >
+          QR code
+        </button>
       </nav>
 
       {toast && (
@@ -185,6 +197,8 @@ export default function AdminPage() {
         <GmailSetupPanel onNotify={notify} />
       ) : tab === "events" ? (
         <EventsManagerPanel onNotify={notify} />
+      ) : tab === "qr" ? (
+        <QrSharePanel onNotify={notify} />
       ) : (
         <>
           <div className="mb-4 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-600 shadow-sm">
