@@ -1,50 +1,22 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useState } from "react";
 import SignupForm from "@/components/SignupForm";
-import SignupList from "@/components/SignupList";
-import type { SignupEntry, SignupFormData } from "@/lib/types";
-import { eventLabel } from "@/lib/types";
-import {
-  createId,
-  exportCsv,
-  loadEntries,
-  saveEntries,
-} from "@/lib/storage";
+import type { SignupFormData } from "@/lib/types";
 
 export default function HomePage() {
-  const [entries, setEntries] = useState<SignupEntry[]>([]);
-  const [ready, setReady] = useState(false);
   const [banner, setBanner] = useState<{
     type: "success" | "warning";
     message: string;
   } | null>(null);
 
-  useEffect(() => {
-    setEntries(loadEntries());
-    setReady(true);
-  }, []);
-
-  const persist = useCallback((next: SignupEntry[]) => {
-    setEntries(next);
-    saveEntries(next);
-  }, []);
-
   function handleSuccess(
-    data: SignupFormData,
+    _data: SignupFormData,
     emailSent: boolean,
     emailError?: string
   ) {
-    const entry: SignupEntry = {
-      id: createId(),
-      ...data,
-      eventLabels: data.events.map(eventLabel),
-      createdAt: new Date().toISOString(),
-      emailSent,
-    };
-    persist([entry, ...entries]);
-
     if (emailSent) {
       setBanner({
         type: "success",
@@ -55,38 +27,22 @@ export default function HomePage() {
       setBanner({
         type: "warning",
         message: emailError
-          ? `Signup saved, but email could not be sent: ${emailError}`
-          : "Signup saved, but email could not be sent. Please contact the PTO board directly.",
+          ? `Signup received, but email could not be sent: ${emailError}`
+          : "Signup received, but email could not be sent. Please contact the PTO board directly.",
       });
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function handleDelete(id: string) {
-    persist(entries.filter((e) => e.id !== id));
-  }
-
-  function handleExport() {
-    const csv = exportCsv(entries);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `dorsey-pto-signups-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  if (!ready) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8 text-stone-500">
-        Loading…
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto w-full max-w-xl flex-1 px-4 py-8 sm:px-6">
+    <div className="relative mx-auto w-full max-w-xl flex-1 px-4 py-8 sm:px-6">
+      <Link
+        href="/login"
+        className="absolute left-4 top-4 z-10 rounded-lg border border-stone-300 bg-white/95 px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm backdrop-blur transition hover:bg-stone-50 sm:left-6 sm:top-6"
+      >
+        Log in
+      </Link>
+
       <header className="mb-8 text-center">
         <div className="mx-auto mb-4 w-full max-w-[280px] sm:max-w-[320px]">
           <Image
@@ -127,22 +83,6 @@ export default function HomePage() {
 
       <div className="space-y-8">
         <SignupForm onSuccess={handleSuccess} />
-
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-base font-bold text-stone-800">
-            On this device
-          </h2>
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={entries.length === 0}
-            className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Export CSV
-          </button>
-        </div>
-
-        <SignupList entries={entries} onDelete={handleDelete} />
       </div>
 
       <footer className="mt-12 border-t border-stone-200 pt-6 text-center text-xs text-stone-400">
@@ -153,3 +93,4 @@ export default function HomePage() {
     </div>
   );
 }
+

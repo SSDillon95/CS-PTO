@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { EVENTS, type EventId, type SignupFormData } from "@/lib/types";
 import { sendSignupNotification } from "@/lib/email";
+import { addSignup } from "@/lib/signups-store";
 
 const EVENT_IDS = new Set(EVENTS.map((e) => e.id));
 
@@ -53,10 +54,20 @@ export async function POST(request: Request) {
   const data: SignupFormData = { name, phone, childNameGrade, events };
   const emailResult = await sendSignupNotification(data);
 
+  let entryId: string | undefined;
+  try {
+    const entry = await addSignup(data, emailResult.ok);
+    entryId = entry.id;
+  } catch {
+    // still return success for the volunteer if email/store partially works
+  }
+
   return NextResponse.json({
     ok: true,
+    id: entryId,
     emailSent: emailResult.ok,
     emailError: emailResult.ok ? undefined : emailResult.error,
     emailId: emailResult.ok ? emailResult.id : undefined,
   });
 }
+
