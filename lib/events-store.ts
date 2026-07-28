@@ -1,59 +1,78 @@
-import { promises as fs } from "fs";
-import path from "path";
 import { randomUUID } from "crypto";
 import { DEFAULT_EVENTS, type EventOption } from "./types";
+import { ensureSchema, getSqlite, pgSql, usesPostgres } from "./db";
 
-function storePath(): string {
-  if (process.env.VERCEL) {
-    return path.join("/tmp", "dorsey-pto-events.json");
-  }
-  return path.join(process.cwd(), "data", "events.json");
-}
-
-function normalizeEvent(raw: unknown): EventOption | null {
-  if (!raw || typeof raw !== "object") return null;
-  const e = raw as Record<string, unknown>;
-  const id = typeof e.id === "string" ? e.id.trim() : "";
-  const label = typeof e.label === "string" ? e.label.trim() : "";
-  if (!id || !label) return null;
+function rowToEvent(row: Record<string, unknown>): EventOption {
   return {
-    id,
-    label,
-    active: e.active === false ? false : true,
+    id: String(row.id),
+    label: String(row.label),
+    active: Boolean(row.active),
   };
 }
 
-async function readAll(): Promise<EventOption[]> {
-  try {
-    const raw = await fs.readFile(storePath(), "utf8");
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return DEFAULT_EVENTS.map((e) => ({ ...e }));
-    const events = parsed
-      .map(normalizeEvent)
-      .filter((e): e is EventOption => e !== null);
-    return events.length > 0 ? events : DEFAULT_EVENTS.map((e) => ({ ...e }));
-  } catch {
-    return DEFAULT_EVENTS.map((e) => ({ ...e }));
+async function seedDefaultsIfEmpty(): Promise<void> {
+  if (usesPostgres()) {
+    const sql = await pgSql();
+    const rows = await sql`SELECT COUNT(*)::int AS count FROM pto_events`;
+    const count = Number((rows[0] as { count?: number })?.count ?? 0);
+    if (count > 0) return;
+    for (let i = 0; i < DEFAULT_EVENTS.length; i++) {
+      const e = DEFAULT_EVENTS[i];
+      await sql`
+        INSERT INTO pto_events (id, label, active, sort_order)
+        VALUES (${e.id}, ${e.label}, ${e.active}, ${i})
+        ON CONFLICT (id) DO NOTHING
+      `;
+    }
+    return;
   }
-}
 
-async function writeAll(events: EventOption[]): Promise<void> {
-  const file = storePath();
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, JSON.stringify(events, null, 2), "utf8");
+  const db = await getSqlite();
+  const row = db.prepare("SELECT COUNT(*) AS count FROM pto_events").get() as {
+    count: number;
+  };
+  if (row.count > 0) return;
+  const insert = db.prepare(
+    "INSERT OR IGNORE INTO pto_events (id, label, active, sort_order) VALUES (?, ?, ?, ?)"
+  );
+  const tx = db.transaction(() => {
+    DEFAULT_EVENTS.forEach((e, i) => {
+      insert.run(e.id, e.label, e.active ? 1 : 0, i);
+    });
+  });
+  tx();
 }
 
 export async function listEvents(): Promise<EventOption[]> {
-  return readAll();
+  await ensureSchema();
+  await seedDefaultsIfEmpty();
+
+  if (usesPostgres()) {
+    const sql = await pgSql();
+    const rows = await sql`
+      SELECT id, label, active, sort_order
+      FROM pto_events
+      ORDER BY sort_order ASC, label ASC
+    `;
+    return rows.map((r) => rowToEvent(r as Record<string, unknown>));
+  }
+
+  const db = await getSqlite();
+  const rows = db
+    .prepare(
+      "SELECT id, label, active, sort_order FROM pto_events ORDER BY sort_order ASC, label ASC"
+    )
+    .all() as Record<string, unknown>[];
+  return rows.map(rowToEvent);
 }
 
 export async function listActiveEvents(): Promise<EventOption[]> {
-  const all = await readAll();
+  const all = await listEvents();
   return all.filter((e) => e.active);
 }
 
 export async function getEventLabelMap(): Promise<Map<string, string>> {
-  const all = await readAll();
+  const all = await listEvents();
   return new Map(all.map((e) => [e.id, e.label]));
 }
 
@@ -71,7 +90,35 @@ function slugify(label: string): string {
   return base || randomUUID().slice(0, 8);
 }
 
+async function writeAllEvents(events: EventOption[]): Promise<void> {
+  if (usesPostgres()) {
+    const sql = await pgSql();
+    await sql`DELETE FROM pto_events`;
+    for (let i = 0; i < events.length; i++) {
+      const e = events[i];
+      await sql`
+        INSERT INTO pto_events (id, label, active, sort_order)
+        VALUES (${e.id}, ${e.label}, ${e.active}, ${i})
+      `;
+    }
+    return;
+  }
+
+  const db = await getSqlite();
+  const tx = db.transaction(() => {
+    db.prepare("DELETE FROM pto_events").run();
+    const insert = db.prepare(
+      "INSERT INTO pto_events (id, label, active, sort_order) VALUES (?, ?, ?, ?)"
+    );
+    events.forEach((e, i) => {
+      insert.run(e.id, e.label, e.active ? 1 : 0, i);
+    });
+  });
+  tx();
+}
+
 export async function saveEvents(events: EventOption[]): Promise<EventOption[]> {
+  await ensureSchema();
   if (!Array.isArray(events) || events.length === 0) {
     throw new Error("At least one event is required.");
   }
@@ -85,10 +132,7 @@ export async function saveEvents(events: EventOption[]): Promise<EventOption[]> 
 
     let id = String(raw.id ?? "").trim();
     if (!id) id = slugify(label);
-
-    if (seen.has(id)) {
-      id = `${id}-${randomUUID().slice(0, 6)}`;
-    }
+    if (seen.has(id)) id = `${id}-${randomUUID().slice(0, 6)}`;
     seen.add(id);
 
     normalized.push({
@@ -98,29 +142,27 @@ export async function saveEvents(events: EventOption[]): Promise<EventOption[]> 
     });
   }
 
-  await writeAll(normalized);
+  await writeAllEvents(normalized);
   return normalized;
 }
 
 export async function addEvent(label: string): Promise<EventOption[]> {
   const text = label.trim();
   if (!text) throw new Error("Event name is required.");
-
-  const events = await readAll();
+  const events = await listEvents();
   let id = slugify(text);
   if (events.some((e) => e.id === id)) {
     id = `${id}-${randomUUID().slice(0, 6)}`;
   }
   events.push({ id, label: text, active: true });
-  await writeAll(events);
-  return events;
+  return saveEvents(events);
 }
 
 export async function updateEvent(
   id: string,
   patch: { label?: string; active?: boolean }
 ): Promise<EventOption[]> {
-  const events = await readAll();
+  const events = await listEvents();
   const idx = events.findIndex((e) => e.id === id);
   if (idx === -1) throw new Error("Event not found.");
 
@@ -132,27 +174,22 @@ export async function updateEvent(
   if (typeof patch.active === "boolean") {
     events[idx].active = patch.active;
   }
-
-  await writeAll(events);
-  return events;
+  return saveEvents(events);
 }
 
 export async function deleteEvent(id: string): Promise<EventOption[]> {
-  const events = await readAll();
+  const events = await listEvents();
   const next = events.filter((e) => e.id !== id);
   if (next.length === events.length) throw new Error("Event not found.");
-  if (next.length === 0) {
-    throw new Error("You must keep at least one event.");
-  }
-  await writeAll(next);
-  return next;
+  if (next.length === 0) throw new Error("You must keep at least one event.");
+  return saveEvents(next);
 }
 
 export async function moveEvent(
   id: string,
   direction: "up" | "down"
 ): Promise<EventOption[]> {
-  const events = await readAll();
+  const events = await listEvents();
   const idx = events.findIndex((e) => e.id === id);
   if (idx === -1) throw new Error("Event not found.");
 
@@ -162,6 +199,5 @@ export async function moveEvent(
   const tmp = events[idx];
   events[idx] = events[swapWith];
   events[swapWith] = tmp;
-  await writeAll(events);
-  return events;
+  return saveEvents(events);
 }

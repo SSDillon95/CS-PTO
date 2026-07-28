@@ -24,8 +24,11 @@
 .DS_Store
 *.pem
 
-# local signup data
+# local signup data / sqlite
 /data
+*.db
+*.db-shm
+*.db-wal
 
 
 # debug

@@ -1,9 +1,11 @@
-import { promises as fs } from "fs";
-import path from "path";
 import { DEFAULT_DISTRIBUTION_EMAILS } from "./types";
+import { ensureSchema, kvDelete, kvGet, kvSet } from "./db";
 
 export const GMAIL_SMTP_HOST = "smtp.gmail.com";
 export const GMAIL_SMTP_PORT = 587;
+
+const KV_GMAIL = "gmail_settings";
+const KV_DISTRIBUTION = "distribution_emails";
 
 export interface GmailSettings {
   username: string;
@@ -31,49 +33,6 @@ export interface GmailSetupStatus {
   distributionEmails: string[];
 }
 
-function configPath(): string {
-  if (process.env.VERCEL) {
-    return path.join("/tmp", "dorsey-pto-gmail-config.json");
-  }
-  return path.join(process.cwd(), "data", "gmail-config.json");
-}
-
-function emptyConfig(): EmailDistributionConfig {
-  return {
-    gmail: null,
-    distributionEmails: [...DEFAULT_DISTRIBUTION_EMAILS],
-  };
-}
-
-export async function loadEmailConfig(): Promise<EmailDistributionConfig> {
-  try {
-    const raw = await fs.readFile(configPath(), "utf8");
-    const parsed = JSON.parse(raw) as Partial<EmailDistributionConfig>;
-    const emails = Array.isArray(parsed.distributionEmails)
-      ? parsed.distributionEmails
-          .filter((e): e is string => typeof e === "string")
-          .map((e) => e.trim().toLowerCase())
-          .filter(Boolean)
-      : [...DEFAULT_DISTRIBUTION_EMAILS];
-
-    return {
-      gmail: parsed.gmail ?? null,
-      distributionEmails:
-        emails.length > 0 ? uniqueEmails(emails) : [...DEFAULT_DISTRIBUTION_EMAILS],
-    };
-  } catch {
-    return emptyConfig();
-  }
-}
-
-export async function saveEmailConfig(
-  config: EmailDistributionConfig
-): Promise<void> {
-  const file = configPath();
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, JSON.stringify(config, null, 2), "utf8");
-}
-
 function uniqueEmails(emails: string[]): string[] {
   return [...new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
 }
@@ -88,12 +47,63 @@ export function validateEmail(email: string): string {
 }
 
 export function validateGmailUsername(username: string): string {
-  const email = validateEmail(username);
-  return email;
+  return validateEmail(username);
+}
+
+async function loadConfig(): Promise<EmailDistributionConfig> {
+  await ensureSchema();
+
+  let gmail: GmailSettings | null = null;
+  const gmailRaw = await kvGet(KV_GMAIL);
+  if (gmailRaw) {
+    try {
+      gmail = JSON.parse(gmailRaw) as GmailSettings;
+    } catch {
+      gmail = null;
+    }
+  }
+
+  let distributionEmails: string[] = [...DEFAULT_DISTRIBUTION_EMAILS];
+  const distRaw = await kvGet(KV_DISTRIBUTION);
+  if (distRaw) {
+    try {
+      const parsed = JSON.parse(distRaw) as string[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        distributionEmails = uniqueEmails(parsed);
+      }
+    } catch {
+      // keep defaults
+    }
+  }
+
+  return { gmail, distributionEmails };
+}
+
+export async function loadEmailConfig(): Promise<EmailDistributionConfig> {
+  return loadConfig();
+}
+
+export async function saveEmailConfig(
+  config: EmailDistributionConfig
+): Promise<void> {
+  await ensureSchema();
+  if (config.gmail) {
+    await kvSet(KV_GMAIL, JSON.stringify(config.gmail));
+  } else {
+    await kvDelete(KV_GMAIL);
+  }
+  await kvSet(
+    KV_DISTRIBUTION,
+    JSON.stringify(
+      config.distributionEmails.length > 0
+        ? config.distributionEmails
+        : [...DEFAULT_DISTRIBUTION_EMAILS]
+    )
+  );
 }
 
 export async function getDistributionEmails(): Promise<string[]> {
-  const config = await loadEmailConfig();
+  const config = await loadConfig();
   return config.distributionEmails.length > 0
     ? config.distributionEmails
     : [...DEFAULT_DISTRIBUTION_EMAILS];
@@ -108,7 +118,7 @@ export async function resolveGmailCredentials(): Promise<{
   source: "saved" | "environment" | "none";
   updatedAt: string | null;
 }> {
-  const config = await loadEmailConfig();
+  const config = await loadConfig();
   if (config.gmail?.username?.trim() && config.gmail.password?.trim()) {
     return {
       username: config.gmail.username.trim(),
@@ -148,7 +158,7 @@ export async function resolveGmailCredentials(): Promise<{
 }
 
 export async function getGmailSetupStatus(): Promise<GmailSetupStatus> {
-  const config = await loadEmailConfig();
+  const config = await loadConfig();
   const credentials = await resolveGmailCredentials();
 
   return {
@@ -180,7 +190,7 @@ export async function saveGmailSettings(input: {
   const password = input.password.trim();
   if (!password) throw new Error("Gmail password / App Password is required.");
 
-  const config = await loadEmailConfig();
+  const config = await loadConfig();
   config.gmail = {
     username,
     password,
@@ -194,7 +204,7 @@ export async function saveGmailSettings(input: {
 }
 
 export async function clearGmailSettings(): Promise<GmailSetupStatus> {
-  const config = await loadEmailConfig();
+  const config = await loadConfig();
   config.gmail = null;
   await saveEmailConfig(config);
   return getGmailSetupStatus();
@@ -207,7 +217,7 @@ export async function saveDistributionEmails(
   if (normalized.length === 0) {
     throw new Error("Add at least one distribution email.");
   }
-  const config = await loadEmailConfig();
+  const config = await loadConfig();
   config.distributionEmails = normalized;
   await saveEmailConfig(config);
   return config.distributionEmails;

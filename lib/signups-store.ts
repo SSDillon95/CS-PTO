@@ -1,36 +1,61 @@
-import { promises as fs } from "fs";
-import path from "path";
-import type { SignupEntry } from "./types";
-import type { SignupFormData } from "./types";
 import { randomUUID } from "crypto";
+import type { SignupEntry, SignupFormData } from "./types";
 import { resolveEventLabels } from "./events-store";
+import { ensureSchema, getSqlite, pgSql, usesPostgres } from "./db";
 
-function storePath(): string {
-  if (process.env.VERCEL) {
-    return path.join("/tmp", "dorsey-pto-signups.json");
-  }
-  return path.join(process.cwd(), "data", "signups.json");
-}
-
-async function readAll(): Promise<SignupEntry[]> {
+function rowToEntry(row: Record<string, unknown>): SignupEntry {
+  let events: string[] = [];
+  let eventLabels: string[] = [];
   try {
-    const raw = await fs.readFile(storePath(), "utf8");
-    const parsed = JSON.parse(raw) as SignupEntry[];
-    return Array.isArray(parsed) ? parsed : [];
+    events = JSON.parse(String(row.events_json || "[]")) as string[];
   } catch {
-    return [];
+    events = [];
   }
-}
+  try {
+    eventLabels = JSON.parse(String(row.event_labels_json || "[]")) as string[];
+  } catch {
+    eventLabels = [];
+  }
 
-async function writeAll(entries: SignupEntry[]): Promise<void> {
-  const file = storePath();
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, JSON.stringify(entries, null, 2), "utf8");
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    phone: String(row.phone),
+    childNameGrade: String(row.child_name_grade),
+    events,
+    eventLabels,
+    emailSent: Boolean(row.email_sent),
+    createdAt:
+      row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : String(row.created_at),
+  };
 }
 
 export async function listSignups(): Promise<SignupEntry[]> {
-  const entries = await readAll();
-  return entries.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  await ensureSchema();
+
+  if (usesPostgres()) {
+    const sql = await pgSql();
+    const rows = await sql`
+      SELECT id, name, phone, child_name_grade, events_json, event_labels_json,
+             email_sent, created_at
+      FROM pto_signups
+      ORDER BY created_at DESC
+    `;
+    return rows.map((r) => rowToEntry(r as Record<string, unknown>));
+  }
+
+  const db = await getSqlite();
+  const rows = db
+    .prepare(
+      `SELECT id, name, phone, child_name_grade, events_json, event_labels_json,
+              email_sent, created_at
+       FROM pto_signups
+       ORDER BY created_at DESC`
+    )
+    .all() as Record<string, unknown>[];
+  return rows.map(rowToEntry);
 }
 
 export async function addSignup(
@@ -38,7 +63,8 @@ export async function addSignup(
   emailSent: boolean,
   eventLabels?: string[]
 ): Promise<SignupEntry> {
-  const entries = await readAll();
+  await ensureSchema();
+
   const labels = eventLabels ?? (await resolveEventLabels(data.events));
   const entry: SignupEntry = {
     id: randomUUID(),
@@ -47,18 +73,63 @@ export async function addSignup(
     createdAt: new Date().toISOString(),
     emailSent,
   };
-  entries.unshift(entry);
-  await writeAll(entries);
+
+  const eventsJson = JSON.stringify(entry.events);
+  const labelsJson = JSON.stringify(entry.eventLabels);
+
+  if (usesPostgres()) {
+    const sql = await pgSql();
+    await sql`
+      INSERT INTO pto_signups (
+        id, name, phone, child_name_grade, events_json, event_labels_json,
+        email_sent, created_at
+      ) VALUES (
+        ${entry.id},
+        ${entry.name},
+        ${entry.phone},
+        ${entry.childNameGrade},
+        ${eventsJson},
+        ${labelsJson},
+        ${entry.emailSent},
+        ${entry.createdAt}
+      )
+    `;
+    return entry;
+  }
+
+  const db = await getSqlite();
+  db.prepare(
+    `INSERT INTO pto_signups (
+      id, name, phone, child_name_grade, events_json, event_labels_json,
+      email_sent, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    entry.id,
+    entry.name,
+    entry.phone,
+    entry.childNameGrade,
+    eventsJson,
+    labelsJson,
+    entry.emailSent ? 1 : 0,
+    entry.createdAt
+  );
   return entry;
 }
 
-
 export async function deleteSignup(id: string): Promise<boolean> {
-  const entries = await readAll();
-  const next = entries.filter((e) => e.id !== id);
-  if (next.length === entries.length) return false;
-  await writeAll(next);
-  return true;
+  await ensureSchema();
+
+  if (usesPostgres()) {
+    const sql = await pgSql();
+    const rows = await sql`
+      DELETE FROM pto_signups WHERE id = ${id} RETURNING id
+    `;
+    return rows.length > 0;
+  }
+
+  const db = await getSqlite();
+  const result = db.prepare("DELETE FROM pto_signups WHERE id = ?").run(id);
+  return result.changes > 0;
 }
 
 export function signupsToCsv(entries: SignupEntry[]): string {

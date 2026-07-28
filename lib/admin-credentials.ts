@@ -1,24 +1,18 @@
-import { promises as fs } from "fs";
-import path from "path";
 import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
+import { ensureSchema, kvGet, kvSet } from "./db";
 
 export const DEFAULT_ADMIN_USERNAME =
   process.env.ADMIN_USERNAME?.trim() || "Hopalong";
 export const DEFAULT_ADMIN_PASSWORD =
   process.env.ADMIN_PASSWORD?.trim() || "Cassity";
 
+const KV_ADMIN = "admin_credentials";
+
 interface StoredCredentials {
   username: string;
   /** scrypt hash: salt:hash (hex) */
   passwordHash: string;
   updatedAt: string;
-}
-
-function storePath(): string {
-  if (process.env.VERCEL) {
-    return path.join("/tmp", "dorsey-pto-admin-credentials.json");
-  }
-  return path.join(process.cwd(), "data", "admin-credentials.json");
 }
 
 function hashPassword(password: string, salt?: Buffer): string {
@@ -43,8 +37,10 @@ function verifyPassword(password: string, stored: string): boolean {
 }
 
 async function readStored(): Promise<StoredCredentials | null> {
+  await ensureSchema();
+  const raw = await kvGet(KV_ADMIN);
+  if (!raw) return null;
   try {
-    const raw = await fs.readFile(storePath(), "utf8");
     const parsed = JSON.parse(raw) as Partial<StoredCredentials>;
     if (
       typeof parsed.username === "string" &&
@@ -62,12 +58,6 @@ async function readStored(): Promise<StoredCredentials | null> {
   } catch {
     return null;
   }
-}
-
-async function writeStored(creds: StoredCredentials): Promise<void> {
-  const file = storePath();
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, JSON.stringify(creds, null, 2), "utf8");
 }
 
 export async function getAdminUsername(): Promise<string> {
@@ -89,7 +79,6 @@ export async function verifyAdminCredentials(
     );
   }
 
-  // Defaults / env (plain comparison for bootstrap credentials)
   return (
     user === DEFAULT_ADMIN_USERNAME && password === DEFAULT_ADMIN_PASSWORD
   );
@@ -122,6 +111,6 @@ export async function updateAdminCredentials(input: {
     passwordHash: hashPassword(input.newPassword),
     updatedAt: new Date().toISOString(),
   };
-  await writeStored(creds);
+  await kvSet(KV_ADMIN, JSON.stringify(creds));
   return { username: newUsername };
 }
