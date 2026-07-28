@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CS-PTO | Parent Teacher Organization Signup",
+  title: "PTO Sign Up Sheet | Dorsey Attendance Center",
   description:
-    "Volunteer and event signup sheet for the Parent Teacher Organization — track who’s helping and when.",
+    "Volunteer signup for Dorsey Attendance Center Parent Teacher Organization — Bulldog Bites, Fall Festival, Bulldog Boutique, and more.",
 };
 
 export default function RootLayout({
@@ -28,7 +28,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <body className="min-h-full flex flex-col bg-[#f7f4ec] text-stone-900">
         {children}
       </body>
     </html>

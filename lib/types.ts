@@ -1,58 +1,46 @@
-/** Parent Teacher Organization volunteer / event signup categories */
-export type SignupCategory =
-  | "event"
-  | "classroom"
-  | "fundraising"
-  | "hospitality"
-  | "other";
+export const EVENTS = [
+  {
+    id: "bulldog-bites",
+    label: "Bulldog Bites - During School Day",
+  },
+  {
+    id: "fall-festival",
+    label: "Fall Festival - After School",
+  },
+  {
+    id: "bulldog-boutique",
+    label: "Bulldog Boutique - During School Day",
+  },
+  {
+    id: "additional",
+    label: "Additional Events - During & After School Hours",
+  },
+] as const;
 
-export type SignupStatus = "confirmed" | "pending" | "cancelled";
+export type EventId = (typeof EVENTS)[number]["id"];
 
-export interface PtoEntry {
+export interface SignupFormData {
+  name: string;
+  phone: string;
+  childNameGrade: string;
+  events: EventId[];
+}
+
+export interface SignupEntry extends SignupFormData {
   id: string;
-  name: string;
-  email: string;
-  phone: string;
-  studentName: string;
-  eventName: string;
-  startDate: string; // YYYY-MM-DD
-  endDate: string; // YYYY-MM-DD
-  type: SignupCategory;
-  status: SignupStatus;
-  notes: string;
-  createdAt: string; // ISO
+  eventLabels: string[];
+  createdAt: string;
+  emailSent: boolean;
 }
 
-export interface PtoFormData {
-  name: string;
-  email: string;
-  phone: string;
-  studentName: string;
-  eventName: string;
-  startDate: string;
-  endDate: string;
-  type: SignupCategory;
-  notes: string;
+/** PTO board emails notified on every completed signup */
+export const NOTIFY_EMAILS = [
+  "carlsheppard1392@gmail.com",
+  "hspenser@itawambacountyschools.com",
+  "mhmitchell@itawambacountyschools.com",
+  "kameroneskew@yahoo.com",
+] as const;
+
+export function eventLabel(id: string): string {
+  return EVENTS.find((e) => e.id === id)?.label ?? id;
 }
-
-export const SIGNUP_CATEGORIES: { value: SignupCategory; label: string }[] = [
-  { value: "event", label: "Event volunteer" },
-  { value: "classroom", label: "Classroom help" },
-  { value: "fundraising", label: "Fundraising" },
-  { value: "hospitality", label: "Hospitality / snacks" },
-  { value: "other", label: "Other" },
-];
-
-export const SIGNUP_STATUSES: { value: SignupStatus; label: string }[] = [
-  { value: "confirmed", label: "Confirmed" },
-  { value: "pending", label: "Pending" },
-  { value: "cancelled", label: "Cancelled" },
-];
-
-/** @deprecated use SIGNUP_CATEGORIES */
-export const PTO_TYPES = SIGNUP_CATEGORIES;
-/** @deprecated use SIGNUP_STATUSES */
-export const PTO_STATUSES = SIGNUP_STATUSES;
-
-export type PtoType = SignupCategory;
-export type PtoStatus = SignupStatus;

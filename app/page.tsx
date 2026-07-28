@@ -1,16 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import PtoForm from "@/components/PtoForm";
-import PtoList from "@/components/PtoList";
-import PtoCalendar from "@/components/PtoCalendar";
-import StatsBar from "@/components/StatsBar";
-import type {
-  PtoEntry,
-  PtoFormData,
-  SignupCategory,
-  SignupStatus,
-} from "@/lib/types";
+import SignupForm from "@/components/SignupForm";
+import SignupList from "@/components/SignupList";
+import type { SignupEntry, SignupFormData } from "@/lib/types";
+import { eventLabel } from "@/lib/types";
 import {
   createId,
   exportCsv,
@@ -19,36 +14,52 @@ import {
 } from "@/lib/storage";
 
 export default function HomePage() {
-  const [entries, setEntries] = useState<PtoEntry[]>([]);
+  const [entries, setEntries] = useState<SignupEntry[]>([]);
   const [ready, setReady] = useState(false);
-  const [filterName, setFilterName] = useState("");
-  const [filterType, setFilterType] = useState<SignupCategory | "all">("all");
-  const now = new Date();
-  const [calYear, setCalYear] = useState(now.getFullYear());
-  const [calMonth, setCalMonth] = useState(now.getMonth());
+  const [banner, setBanner] = useState<{
+    type: "success" | "warning";
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     setEntries(loadEntries());
     setReady(true);
   }, []);
 
-  const persist = useCallback((next: PtoEntry[]) => {
+  const persist = useCallback((next: SignupEntry[]) => {
     setEntries(next);
     saveEntries(next);
   }, []);
 
-  function handleAdd(data: PtoFormData) {
-    const entry: PtoEntry = {
+  function handleSuccess(
+    data: SignupFormData,
+    emailSent: boolean,
+    emailError?: string
+  ) {
+    const entry: SignupEntry = {
       id: createId(),
       ...data,
-      status: "confirmed",
+      eventLabels: data.events.map(eventLabel),
       createdAt: new Date().toISOString(),
+      emailSent,
     };
     persist([entry, ...entries]);
-  }
 
-  function handleStatusChange(id: string, status: SignupStatus) {
-    persist(entries.map((e) => (e.id === id ? { ...e, status } : e)));
+    if (emailSent) {
+      setBanner({
+        type: "success",
+        message:
+          "Thank you! Your signup was submitted and emailed to the PTO board.",
+      });
+    } else {
+      setBanner({
+        type: "warning",
+        message: emailError
+          ? `Signup saved, but email could not be sent: ${emailError}`
+          : "Signup saved, but email could not be sent. Please contact the PTO board directly.",
+      });
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function handleDelete(id: string) {
@@ -61,92 +72,83 @@ export default function HomePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `cs-pto-signups-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `dorsey-pto-signups-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
-  function prevMonth() {
-    if (calMonth === 0) {
-      setCalMonth(11);
-      setCalYear((y) => y - 1);
-    } else {
-      setCalMonth((m) => m - 1);
-    }
-  }
-
-  function nextMonth() {
-    if (calMonth === 11) {
-      setCalMonth(0);
-      setCalYear((y) => y + 1);
-    } else {
-      setCalMonth((m) => m + 1);
-    }
-  }
-
-  function goToday() {
-    const d = new Date();
-    setCalYear(d.getFullYear());
-    setCalMonth(d.getMonth());
-  }
-
   if (!ready) {
     return (
-      <div className="flex flex-1 items-center justify-center p-8 text-slate-500">
-        Loading CS-PTO…
+      <div className="flex flex-1 items-center justify-center p-8 text-stone-500">
+        Loading…
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-teal-800 dark:bg-teal-900/50 dark:text-teal-300">
-            Parent Teacher Organization
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-            CS-PTO
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Volunteer & event signup sheet — who&apos;s helping and when.
-          </p>
+    <div className="mx-auto w-full max-w-xl flex-1 px-4 py-8 sm:px-6">
+      <header className="mb-8 text-center">
+        <div className="mx-auto mb-4 w-full max-w-[280px] sm:max-w-[320px]">
+          <Image
+            src="/dorsey-pto-logo.jpg"
+            alt="Dorsey Attendance Center Parent Teacher Organization — Together We Support, Together We Succeed"
+            width={640}
+            height={640}
+            priority
+            className="h-auto w-full rounded-full shadow-md ring-2 ring-[#c9a227]/50"
+          />
         </div>
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={entries.length === 0}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-        >
-          Export CSV
-        </button>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a88b1e]">
+          Together We Support · Together We Succeed
+        </p>
       </header>
 
-      <div className="space-y-6">
-        <StatsBar entries={entries} />
-        <PtoForm onSubmit={handleAdd} />
-        <PtoCalendar
-          entries={entries}
-          year={calYear}
-          month={calMonth}
-          onPrev={prevMonth}
-          onNext={nextMonth}
-          onToday={goToday}
-        />
-        <PtoList
-          entries={entries}
-          filterName={filterName}
-          filterType={filterType}
-          onFilterName={setFilterName}
-          onFilterType={setFilterType}
-          onStatusChange={handleStatusChange}
-          onDelete={handleDelete}
-        />
+      {banner && (
+        <div
+          className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+            banner.type === "success"
+              ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+              : "border-amber-300 bg-amber-50 text-amber-950"
+          }`}
+          role="status"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <p>{banner.message}</p>
+            <button
+              type="button"
+              onClick={() => setBanner(null)}
+              className="shrink-0 text-xs font-semibold opacity-70 hover:opacity-100"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-8">
+        <SignupForm onSuccess={handleSuccess} />
+
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-serif text-base font-bold text-stone-800">
+            On this device
+          </h2>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={entries.length === 0}
+            className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Export CSV
+          </button>
+        </div>
+
+        <SignupList entries={entries} onDelete={handleDelete} />
       </div>
 
-      <footer className="mt-12 border-t border-slate-200 pt-6 text-center text-xs text-slate-400 dark:border-slate-800">
-        CS-PTO · Parent Teacher Organization · Data is stored in this browser.
-        Export CSV to share.
+      <footer className="mt-12 border-t border-stone-200 pt-6 text-center text-xs text-stone-400">
+        Dorsey Attendance Center · Parent Teacher Organization
+        <br />
+        Signups are emailed to the PTO board automatically.
       </footer>
     </div>
   );

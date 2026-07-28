@@ -1,51 +1,58 @@
-# CS-PTO
+# Dorsey Attendance Center — PTO Sign Up Sheet
 
-**Parent Teacher Organization** volunteer & event signup sheet. Families can sign up to help with events, classroom activities, fundraisers, and hospitality. View a monthly calendar of who’s volunteering, manage confirmation status, and export the sheet as CSV.
+Volunteer signup form for the **Dorsey Attendance Center Parent Teacher Organization**.
 
-## Features
+## Sign up fields
 
-- Volunteer signup (name, student, contact, event/role, dates, category, notes)
-- Categories: event volunteer, classroom help, fundraising, hospitality, other
-- Stats: helping today, upcoming, confirmed, total volunteers
-- Month calendar of volunteer coverage
-- Filterable signup sheet with status (confirmed / pending / cancelled)
-- Export to CSV
-- Data stored in the browser (`localStorage`) — no backend required
+- Name  
+- Phone Number  
+- Child's Name & Grade  
+- Events to Help In (multi-select):
+  - Bulldog Bites - During School Day  
+  - Fall Festival - After School  
+  - Bulldog Boutique - During School Day  
+  - Additional Events - During & After School Hours  
+
+## Auto-email on submit
+
+Each completed signup is emailed to:
+
+- carlsheppard1392@gmail.com  
+- hspenser@itawambacountyschools.com  
+- mhmitchell@itawambacountyschools.com  
+- kameroneskew@yahoo.com  
+
+Email is sent via [Resend](https://resend.com). Set these environment variables (local `.env.local` and Vercel Project Settings):
+
+```bash
+RESEND_API_KEY=re_xxxxxxxx
+# Optional, after domain verification:
+# RESEND_FROM=Dorsey PTO <pto@yourdomain.com>
+```
+
+> **Note:** On Resend’s free tier without a verified domain, mail can only go to the Resend account owner. Verify a domain (or use a school domain) so all four board addresses receive the form.
 
 ## Stack
 
-- [Next.js](https://nextjs.org) (App Router)
-- TypeScript
-- Tailwind CSS
-- Deployed on [Vercel](https://vercel.com)
+- Next.js · TypeScript · Tailwind CSS · Resend · Vercel  
 
 ## Local development
 
 ```bash
 cd CS-PTO
+cp .env.example .env.local   # add RESEND_API_KEY
 npm install
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Deploy to Vercel
+## Deploy
 
 ```bash
 vercel --prod
 ```
 
-Or push to GitHub — production auto-deploys at [cs-pto.vercel.app](https://cs-pto.vercel.app).
+Add `RESEND_API_KEY` (and optional `RESEND_FROM`) in the Vercel project environment variables, then redeploy.
 
-## Scripts
-
-| Command         | Description               |
-|-----------------|---------------------------|
-| `npm run dev`   | Local dev server          |
-| `npm run build` | Production build          |
-| `npm run start` | Start production server   |
-| `npm run lint`  | ESLint                    |
-
-## Note on data
-
-Signups are saved per browser via `localStorage`. Use **Export CSV** to share or back up. For a shared multi-user database (everyone sees the same sheet), we can add Vercel Postgres / Neon later.
+Live: [https://cs-pto.vercel.app](https://cs-pto.vercel.app)
