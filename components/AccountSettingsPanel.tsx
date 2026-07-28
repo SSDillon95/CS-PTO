@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 interface AccountSettingsPanelProps {
   onNotify: (type: "success" | "error", text: string) => void;
