@@ -1,6 +1,7 @@
 import type { PtoEntry } from "./types";
+import { SIGNUP_CATEGORIES } from "./types";
 
-const STORAGE_KEY = "cs-pto-entries";
+const STORAGE_KEY = "cs-pto-volunteer-signups-v1";
 
 export function loadEntries(): PtoEntry[] {
   if (typeof window === "undefined") return [];
@@ -54,27 +55,35 @@ export function formatDateRange(start: string, end: string): string {
   return `${s} – ${e}`;
 }
 
+export function categoryLabel(type: string): string {
+  return SIGNUP_CATEGORIES.find((c) => c.value === type)?.label ?? type;
+}
+
 export function exportCsv(entries: PtoEntry[]): string {
   const headers = [
     "Name",
     "Email",
+    "Phone",
+    "Student",
+    "Event / Role",
     "Start Date",
     "End Date",
-    "Days",
-    "Type",
+    "Category",
     "Status",
     "Notes",
-    "Created",
+    "Signed Up",
   ];
   const rows = entries.map((e) => [
     e.name,
     e.email,
+    e.phone ?? "",
+    e.studentName ?? "",
+    e.eventName ?? "",
     e.startDate,
     e.endDate,
-    String(daysBetween(e.startDate, e.endDate)),
-    e.type,
+    categoryLabel(e.type),
     e.status,
-    e.notes.replace(/"/g, '""'),
+    (e.notes ?? "").replace(/"/g, '""'),
     e.createdAt,
   ]);
   const escape = (cell: string) =>

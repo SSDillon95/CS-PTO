@@ -1,13 +1,14 @@
 # CS-PTO
 
-Customer Success **PTO signup sheet**. Team members can log vacation, sick, and personal time off, view a monthly calendar of who’s out, and export the sheet as CSV.
+**Parent Teacher Organization** volunteer & event signup sheet. Families can sign up to help with events, classroom activities, fundraisers, and hospitality. View a monthly calendar of who’s volunteering, manage confirmation status, and export the sheet as CSV.
 
 ## Features
 
-- Sign up for PTO (name, email, dates, type, notes)
-- Stats: on leave today, upcoming, total days
-- Month calendar with coverage at a glance
-- Filterable sheet with status (scheduled / pending / cancelled)
+- Volunteer signup (name, student, contact, event/role, dates, category, notes)
+- Categories: event volunteer, classroom help, fundraising, hospitality, other
+- Stats: helping today, upcoming, confirmed, total volunteers
+- Month calendar of volunteer coverage
+- Filterable signup sheet with status (confirmed / pending / cancelled)
 - Export to CSV
 - Data stored in the browser (`localStorage`) — no backend required
 
@@ -30,38 +31,21 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Deploy to Vercel
 
-### Option A — CLI
-
 ```bash
-npm i -g vercel   # if needed
-vercel            # preview
-vercel --prod     # production
+vercel --prod
 ```
 
-### Option B — GitHub
-
-1. Push this repo to GitHub
-2. Import the project at [vercel.com/new](https://vercel.com/new)
-3. Framework preset: **Next.js** (auto-detected)
-4. Deploy
+Or push to GitHub — production auto-deploys at [cs-pto.vercel.app](https://cs-pto.vercel.app).
 
 ## Scripts
 
-| Command       | Description              |
-|---------------|--------------------------|
-| `npm run dev` | Local dev server         |
-| `npm run build` | Production build       |
-| `npm run start` | Start production server|
-| `npm run lint`  | ESLint                 |
-
-## Project layout
-
-```
-app/           # Next.js App Router pages
-components/    # UI (form, list, calendar, stats)
-lib/           # Types, storage, calendar helpers
-```
+| Command         | Description               |
+|-----------------|---------------------------|
+| `npm run dev`   | Local dev server          |
+| `npm run build` | Production build          |
+| `npm run start` | Start production server   |
+| `npm run lint`  | ESLint                    |
 
 ## Note on data
 
-Entries are saved per browser via `localStorage`. Use **Export CSV** to share or back up. For a shared multi-user database, we can add Vercel Postgres / Neon later.
+Signups are saved per browser via `localStorage`. Use **Export CSV** to share or back up. For a shared multi-user database (everyone sees the same sheet), we can add Vercel Postgres / Neon later.

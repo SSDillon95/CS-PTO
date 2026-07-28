@@ -41,9 +41,14 @@ export default function PtoCalendar({
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-          {monthLabel(year, month)}
-        </h2>
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+            {monthLabel(year, month)}
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Who’s volunteering each day
+          </p>
+        </div>
         <div className="flex gap-2">
           <button
             type="button"
@@ -113,10 +118,11 @@ export default function PtoCalendar({
                 {dayEntries.slice(0, 3).map((e) => (
                   <div
                     key={e.id}
-                    title={`${e.name} (${e.type})`}
+                    title={`${e.name}${e.eventName ? ` — ${e.eventName}` : ""}`}
                     className="truncate rounded bg-teal-600/90 px-1 py-0.5 text-[10px] font-medium text-white"
                   >
                     {e.name.split(" ")[0]}
+                    {e.eventName ? `: ${e.eventName}` : ""}
                   </div>
                 ))}
                 {dayEntries.length > 3 && (

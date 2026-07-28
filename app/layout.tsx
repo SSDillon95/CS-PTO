@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CS-PTO | Customer Success PTO Signup",
+  title: "CS-PTO | Parent Teacher Organization Signup",
   description:
-    "Team PTO signup sheet for Customer Success — track who is out and when.",
+    "Volunteer and event signup sheet for the Parent Teacher Organization — track who’s helping and when.",
 };
 
 export default function RootLayout({

@@ -1,7 +1,6 @@
 "use client";
 
 import type { PtoEntry } from "@/lib/types";
-import { daysBetween } from "@/lib/storage";
 import { upcomingEntries } from "@/lib/calendar";
 
 interface StatsBarProps {
@@ -12,19 +11,16 @@ export default function StatsBar({ entries }: StatsBarProps) {
   const today = new Date().toISOString().slice(0, 10);
   const active = entries.filter((e) => e.status !== "cancelled");
   const upcoming = upcomingEntries(active, today);
-  const onLeaveToday = active.filter(
+  const happeningToday = active.filter(
     (e) => e.startDate <= today && e.endDate >= today
   );
-  const totalDays = active.reduce(
-    (sum, e) => sum + daysBetween(e.startDate, e.endDate),
-    0
-  );
+  const confirmed = active.filter((e) => e.status === "confirmed").length;
 
   const cards = [
-    { label: "On leave today", value: onLeaveToday.length },
-    { label: "Upcoming", value: upcoming.length },
-    { label: "Total entries", value: active.length },
-    { label: "PTO days logged", value: totalDays },
+    { label: "Helping today", value: happeningToday.length },
+    { label: "Upcoming signups", value: upcoming.length },
+    { label: "Confirmed", value: confirmed },
+    { label: "Total volunteers", value: active.length },
   ];
 
   return (

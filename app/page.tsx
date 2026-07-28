@@ -5,7 +5,12 @@ import PtoForm from "@/components/PtoForm";
 import PtoList from "@/components/PtoList";
 import PtoCalendar from "@/components/PtoCalendar";
 import StatsBar from "@/components/StatsBar";
-import type { PtoEntry, PtoFormData, PtoStatus, PtoType } from "@/lib/types";
+import type {
+  PtoEntry,
+  PtoFormData,
+  SignupCategory,
+  SignupStatus,
+} from "@/lib/types";
 import {
   createId,
   exportCsv,
@@ -17,7 +22,7 @@ export default function HomePage() {
   const [entries, setEntries] = useState<PtoEntry[]>([]);
   const [ready, setReady] = useState(false);
   const [filterName, setFilterName] = useState("");
-  const [filterType, setFilterType] = useState<PtoType | "all">("all");
+  const [filterType, setFilterType] = useState<SignupCategory | "all">("all");
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calMonth, setCalMonth] = useState(now.getMonth());
@@ -36,13 +41,13 @@ export default function HomePage() {
     const entry: PtoEntry = {
       id: createId(),
       ...data,
-      status: "scheduled",
+      status: "confirmed",
       createdAt: new Date().toISOString(),
     };
     persist([entry, ...entries]);
   }
 
-  function handleStatusChange(id: string, status: PtoStatus) {
+  function handleStatusChange(id: string, status: SignupStatus) {
     persist(entries.map((e) => (e.id === id ? { ...e, status } : e)));
   }
 
@@ -56,7 +61,7 @@ export default function HomePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `cs-pto-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `cs-pto-signups-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -98,13 +103,13 @@ export default function HomePage() {
       <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-teal-800 dark:bg-teal-900/50 dark:text-teal-300">
-            Customer Success
+            Parent Teacher Organization
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
             CS-PTO
           </h1>
           <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Team PTO signup sheet — who&apos;s out and when.
+            Volunteer & event signup sheet — who&apos;s helping and when.
           </p>
         </div>
         <button
@@ -140,8 +145,8 @@ export default function HomePage() {
       </div>
 
       <footer className="mt-12 border-t border-slate-200 pt-6 text-center text-xs text-slate-400 dark:border-slate-800">
-        CS-PTO · Data is stored in this browser (localStorage). Export CSV to
-        share.
+        CS-PTO · Parent Teacher Organization · Data is stored in this browser.
+        Export CSV to share.
       </footer>
     </div>
   );
