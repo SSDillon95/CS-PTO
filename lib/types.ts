@@ -84,6 +84,32 @@ export function normalizeChildren(input: unknown): ChildEntry[] {
   return out;
 }
 
+/** Digits-only phone key for matching (US-friendly last 10). */
+export function normalizePhoneDigits(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) return digits.slice(1);
+  if (digits.length > 10) return digits.slice(-10);
+  return digits;
+}
+
+export function phonesMatch(a: string, b: string): boolean {
+  const da = normalizePhoneDigits(a);
+  const db = normalizePhoneDigits(b);
+  if (da.length < 7 || db.length < 7) return false;
+  if (da === db) return true;
+  // Allow match when one has country code / extension formatting differences
+  return da.endsWith(db) || db.endsWith(da);
+}
+
+/** Public-safe profile returned for returning-parent lookup. */
+export interface ParentMatch {
+  name: string;
+  phone: string;
+  children: ChildEntry[];
+  events: EventId[];
+  eventLabels: string[];
+}
+
 /** Default PTO board emails for form entry distribution */
 export const DEFAULT_DISTRIBUTION_EMAILS = [
   "carlsheppard1392@gmail.com",

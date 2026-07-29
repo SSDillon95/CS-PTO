@@ -1,6 +1,16 @@
 import { randomUUID } from "crypto";
-import type { ChildEntry, SignupEntry, SignupFormData } from "./types";
-import { formatChildren, normalizeChildren } from "./types";
+import type {
+  ChildEntry,
+  ParentMatch,
+  SignupEntry,
+  SignupFormData,
+} from "./types";
+import {
+  formatChildren,
+  normalizeChildren,
+  normalizePhoneDigits,
+  phonesMatch,
+} from "./types";
 import { resolveEventLabels } from "./events-store";
 import { ensureSchema, getSqlite, pgSql, usesPostgres } from "./db";
 
@@ -159,6 +169,33 @@ export async function addSignup(
     entry.createdAt
   );
   return entry;
+}
+
+/**
+ * Find the most recent signup matching a phone number.
+ * Used by the public form to offer autofill for returning parents.
+ */
+export async function findSignupByPhone(
+  phone: string
+): Promise<ParentMatch | null> {
+  const key = normalizePhoneDigits(phone);
+  if (key.length < 10) return null;
+
+  const entries = await listSignups();
+  const match = entries.find((e) => phonesMatch(e.phone, phone));
+  if (!match) return null;
+
+  return {
+    name: match.name,
+    phone: match.phone,
+    children: match.children?.length
+      ? match.children
+      : match.childNameGrade
+        ? [{ name: match.childNameGrade, grade: "" }]
+        : [],
+    events: match.events || [],
+    eventLabels: match.eventLabels || [],
+  };
 }
 
 export async function deleteSignup(id: string): Promise<boolean> {
