@@ -34,7 +34,18 @@ export default function SignupList({ entries, onDelete }: SignupListProps) {
                 <div className="font-semibold text-stone-900">{entry.name}</div>
                 <div className="text-sm text-stone-600">{entry.phone}</div>
                 <div className="text-sm text-stone-600">
-                  {entry.childNameGrade}
+                  {entry.children && entry.children.length > 0 ? (
+                    <ul className="list-inside list-disc">
+                      {entry.children.map((c, i) => (
+                        <li key={i}>
+                          {c.name}
+                          {c.grade ? ` — ${c.grade}` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    entry.childNameGrade
+                  )}
                 </div>
                 <ul className="mt-2 list-inside list-disc text-sm text-stone-700">
                   {entry.eventLabels.map((label) => (

@@ -33,18 +33,55 @@ export const EVENTS = DEFAULT_EVENTS;
 
 export type EventId = string;
 
+export const MAX_CHILDREN = 4;
+
+export interface ChildEntry {
+  name: string;
+  grade: string;
+}
+
 export interface SignupFormData {
   name: string;
   phone: string;
-  childNameGrade: string;
+  children: ChildEntry[];
   events: EventId[];
 }
 
 export interface SignupEntry extends SignupFormData {
   id: string;
+  /** Formatted display string for all children (also used for legacy rows). */
+  childNameGrade: string;
   eventLabels: string[];
   createdAt: string;
   emailSent: boolean;
+}
+
+export function formatChildren(children: ChildEntry[]): string {
+  return children
+    .map((c) => {
+      const name = c.name.trim();
+      const grade = c.grade.trim();
+      if (!name && !grade) return "";
+      if (name && grade) return `${name} — ${grade}`;
+      return name || grade;
+    })
+    .filter(Boolean)
+    .join("; ");
+}
+
+export function normalizeChildren(input: unknown): ChildEntry[] {
+  if (!Array.isArray(input)) return [];
+  const out: ChildEntry[] = [];
+  for (const item of input) {
+    if (!item || typeof item !== "object") continue;
+    const raw = item as { name?: unknown; grade?: unknown };
+    const name = typeof raw.name === "string" ? raw.name.trim() : "";
+    const grade = typeof raw.grade === "string" ? raw.grade.trim() : "";
+    if (!name && !grade) continue;
+    out.push({ name, grade });
+    if (out.length >= MAX_CHILDREN) break;
+  }
+  return out;
 }
 
 /** Default PTO board emails for form entry distribution */

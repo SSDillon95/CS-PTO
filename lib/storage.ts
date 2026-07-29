@@ -30,19 +30,36 @@ export function exportCsv(entries: SignupEntry[]): string {
   const headers = [
     "Name",
     "Phone Number",
-    "Child's Name & Grade",
+    "Children",
+    "Child 1 Name",
+    "Child 1 Grade",
+    "Child 2 Name",
+    "Child 2 Grade",
+    "Child 3 Name",
+    "Child 3 Grade",
+    "Child 4 Name",
+    "Child 4 Grade",
     "Events",
     "Submitted",
     "Email Sent",
   ];
-  const rows = entries.map((e) => [
-    e.name,
-    e.phone,
-    e.childNameGrade,
-    e.eventLabels.join("; "),
-    e.createdAt,
-    e.emailSent ? "Yes" : "No",
-  ]);
+  const rows = entries.map((e) => {
+    const kids = e.children?.length
+      ? e.children
+      : e.childNameGrade
+        ? [{ name: e.childNameGrade, grade: "" }]
+        : [];
+    const cells = [e.name, e.phone, e.childNameGrade || ""];
+    for (let i = 0; i < 4; i++) {
+      cells.push(kids[i]?.name ?? "", kids[i]?.grade ?? "");
+    }
+    cells.push(
+      e.eventLabels.join("; "),
+      e.createdAt,
+      e.emailSent ? "Yes" : "No"
+    );
+    return cells;
+  });
   const escape = (cell: string) =>
     cell.includes(",") || cell.includes('"') || cell.includes("\n")
       ? `"${cell.replace(/"/g, '""')}"`

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import type { EventOption, SignupFormData } from "@/lib/types";
+import type { ChildEntry, EventOption, SignupFormData } from "@/lib/types";
+import { MAX_CHILDREN, normalizeChildren } from "@/lib/types";
 
 interface SignupFormProps {
   onSuccess: (
@@ -11,10 +12,14 @@ interface SignupFormProps {
   ) => void;
 }
 
+function emptyChild(): ChildEntry {
+  return { name: "", grade: "" };
+}
+
 export default function SignupForm({ onSuccess }: SignupFormProps) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [childNameGrade, setChildNameGrade] = useState("");
+  const [children, setChildren] = useState<ChildEntry[]>([emptyChild()]);
   const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [events, setEvents] = useState<string[]>([]);
@@ -48,6 +53,33 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     setError(null);
   }
 
+  function updateChild(
+    index: number,
+    field: keyof ChildEntry,
+    value: string
+  ) {
+    setChildren((prev) =>
+      prev.map((c, i) => (i === index ? { ...c, [field]: value } : c))
+    );
+    setError(null);
+  }
+
+  function addChild() {
+    setChildren((prev) => {
+      if (prev.length >= MAX_CHILDREN) return prev;
+      return [...prev, emptyChild()];
+    });
+    setError(null);
+  }
+
+  function removeChild(index: number) {
+    setChildren((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
+    setError(null);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -60,10 +92,37 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
       setError("Phone number is required.");
       return;
     }
-    if (!childNameGrade.trim()) {
-      setError("Child's name & grade is required.");
+
+    const validChildren = normalizeChildren(children);
+    if (validChildren.length === 0) {
+      setError("Add at least one child (name and grade).");
       return;
     }
+    for (let i = 0; i < validChildren.length; i++) {
+      const c = validChildren[i];
+      if (!c.name) {
+        setError(`Child ${i + 1}: name is required.`);
+        return;
+      }
+      if (!c.grade) {
+        setError(`Child ${i + 1}: grade is required.`);
+        return;
+      }
+    }
+
+    // Reject partially filled rows still on the form
+    for (let i = 0; i < children.length; i++) {
+      const c = children[i];
+      const hasName = c.name.trim().length > 0;
+      const hasGrade = c.grade.trim().length > 0;
+      if ((hasName && !hasGrade) || (!hasName && hasGrade)) {
+        setError(
+          `Child ${i + 1}: enter both name and grade, or clear the row.`
+        );
+        return;
+      }
+    }
+
     if (events.length === 0) {
       setError("Please select at least one event to help with.");
       return;
@@ -72,7 +131,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     const data: SignupFormData = {
       name: name.trim(),
       phone: phone.trim(),
-      childNameGrade: childNameGrade.trim(),
+      children: validChildren,
       events,
     };
 
@@ -98,7 +157,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
       onSuccess(data, Boolean(json.emailSent), json.emailError);
       setName("");
       setPhone("");
-      setChildNameGrade("");
+      setChildren([emptyChild()]);
       setEvents([]);
     } catch {
       setError("Network error. Please check your connection and try again.");
@@ -153,20 +212,83 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           />
         </label>
 
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-semibold text-stone-800">
-            Child&apos;s Name &amp; Grade{" "}
-            <span className="text-red-600">*</span>
-          </span>
-          <input
-            type="text"
-            value={childNameGrade}
-            onChange={(e) => setChildNameGrade(e.target.value)}
-            placeholder="e.g. Alex Smith — 3rd Grade"
-            className={inputClass}
-            required
-          />
-        </label>
+        <fieldset>
+          <legend className="mb-1.5 text-sm font-semibold text-stone-800">
+            Children <span className="text-red-600">*</span>
+          </legend>
+          <p className="mb-3 text-xs text-stone-500">
+            Enter each child&apos;s name and grade. You can list up to{" "}
+            {MAX_CHILDREN} children.
+          </p>
+
+          <div className="space-y-3">
+            {children.map((child, index) => (
+              <div
+                key={index}
+                className="rounded-xl border-2 border-stone-200 bg-stone-50/80 p-3 sm:p-4"
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    Child {index + 1}
+                  </span>
+                  {children.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeChild(index)}
+                      className="text-xs font-medium text-red-600 hover:text-red-500"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold text-stone-700">
+                      Name <span className="text-red-600">*</span>
+                    </span>
+                    <input
+                      type="text"
+                      value={child.name}
+                      onChange={(e) =>
+                        updateChild(index, "name", e.target.value)
+                      }
+                      placeholder="Child's name"
+                      className={inputClass}
+                      required={index === 0}
+                      autoComplete="off"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold text-stone-700">
+                      Grade <span className="text-red-600">*</span>
+                    </span>
+                    <input
+                      type="text"
+                      value={child.grade}
+                      onChange={(e) =>
+                        updateChild(index, "grade", e.target.value)
+                      }
+                      placeholder="e.g. 3rd Grade"
+                      className={inputClass}
+                      required={index === 0}
+                      autoComplete="off"
+                    />
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {children.length < MAX_CHILDREN && (
+            <button
+              type="button"
+              onClick={addChild}
+              className="mt-3 w-full rounded-lg border-2 border-dashed border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:border-[#c9a227] hover:bg-[#faf6e8] hover:text-stone-900"
+            >
+              + Add another child ({children.length}/{MAX_CHILDREN})
+            </button>
+          )}
+        </fieldset>
 
         <fieldset>
           <legend className="mb-3 text-sm font-semibold text-stone-800">

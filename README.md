@@ -6,7 +6,7 @@ Volunteer signup form for the **Dorsey Attendance Center Parent Teacher Organiza
 
 - Name  
 - Phone Number  
-- Child's Name & Grade  
+- Children (up to 4): separate **Name** and **Grade** per child  
 - Events to Help In (multi-select):
   - Bulldog Bites - During School Day  
   - Fall Festival - After School  

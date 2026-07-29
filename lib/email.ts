@@ -1,8 +1,28 @@
 import { Resend } from "resend";
 import type { SignupFormData } from "./types";
+import { formatChildren } from "./types";
 import { getDistributionEmails } from "./gmail-config";
 import { sendViaGmail } from "./gmail-send";
 import { resolveEventLabels } from "./events-store";
+
+function childrenHtml(data: SignupFormData): string {
+  const kids = data.children || [];
+  if (kids.length === 0) {
+    return `<em>${escapeHtml(formatChildren(kids) || "—")}</em>`;
+  }
+  return `<ul style="margin: 0; padding-left: 18px;">${kids
+    .map(
+      (c) =>
+        `<li><strong>${escapeHtml(c.name)}</strong> — ${escapeHtml(c.grade)}</li>`
+    )
+    .join("")}</ul>`;
+}
+
+function childrenText(data: SignupFormData): string {
+  const kids = data.children || [];
+  if (kids.length === 0) return formatChildren(kids) || "—";
+  return kids.map((c, i) => `  ${i + 1}. ${c.name} — ${c.grade}`).join("\n");
+}
 
 export function buildEmailHtml(
   data: SignupFormData,
@@ -33,8 +53,8 @@ export function buildEmailHtml(
           <td style="padding: 8px 0;">${escapeHtml(data.phone)}</td>
         </tr>
         <tr>
-          <td style="padding: 8px 0; font-weight: bold; vertical-align: top;">Child's Name &amp; Grade</td>
-          <td style="padding: 8px 0;">${escapeHtml(data.childNameGrade)}</td>
+          <td style="padding: 8px 0; font-weight: bold; vertical-align: top;">Children</td>
+          <td style="padding: 8px 0;">${childrenHtml(data)}</td>
         </tr>
         <tr>
           <td style="padding: 8px 0; font-weight: bold; vertical-align: top;">Events to Help In</td>
@@ -60,7 +80,8 @@ export function buildEmailText(
     "",
     `Name: ${data.name}`,
     `Phone Number: ${data.phone}`,
-    `Child's Name & Grade: ${data.childNameGrade}`,
+    "Children:",
+    childrenText(data),
     "Events to Help In:",
     events,
     "",

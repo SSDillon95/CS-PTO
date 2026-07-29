@@ -235,7 +235,7 @@ export default function AdminPage() {
                   <tr>
                     <th className="px-4 py-3 font-medium">Name</th>
                     <th className="px-4 py-3 font-medium">Phone</th>
-                    <th className="px-4 py-3 font-medium">Child &amp; Grade</th>
+                    <th className="px-4 py-3 font-medium">Children</th>
                     <th className="px-4 py-3 font-medium">Events</th>
                     <th className="px-4 py-3 font-medium">Submitted</th>
                     <th className="px-4 py-3 font-medium">Email</th>
@@ -250,7 +250,18 @@ export default function AdminPage() {
                       </td>
                       <td className="px-4 py-3 text-stone-700">{entry.phone}</td>
                       <td className="px-4 py-3 text-stone-700">
-                        {entry.childNameGrade}
+                        {entry.children && entry.children.length > 0 ? (
+                          <ul className="list-inside list-disc">
+                            {entry.children.map((c, i) => (
+                              <li key={i}>
+                                {c.name}
+                                {c.grade ? ` — ${c.grade}` : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          entry.childNameGrade || "—"
+                        )}
                       </td>
                       <td className="px-4 py-3 text-stone-700">
                         <ul className="list-inside list-disc">

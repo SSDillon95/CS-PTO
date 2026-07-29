@@ -57,6 +57,11 @@ async function initSchema(): Promise<void> {
       CREATE INDEX IF NOT EXISTS pto_signups_created_at_idx
       ON pto_signups (created_at DESC)
     `;
+    // Structured children (name + grade, up to 4). Older rows only have child_name_grade.
+    await sql`
+      ALTER TABLE pto_signups
+      ADD COLUMN IF NOT EXISTS children_json TEXT
+    `;
     return;
   }
 
@@ -86,6 +91,13 @@ async function initSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS pto_signups_created_at_idx
       ON pto_signups (created_at DESC);
   `);
+  // SQLite: add children_json if missing
+  const cols = db
+    .prepare("PRAGMA table_info(pto_signups)")
+    .all() as { name: string }[];
+  if (!cols.some((c) => c.name === "children_json")) {
+    db.exec("ALTER TABLE pto_signups ADD COLUMN children_json TEXT");
+  }
 }
 
 type SqlTag = (

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { SignupFormData } from "@/lib/types";
+import { MAX_CHILDREN, normalizeChildren } from "@/lib/types";
 import { sendSignupNotification } from "@/lib/email";
 import { addSignup } from "@/lib/signups-store";
 import { listActiveEvents, resolveEventLabels } from "@/lib/events-store";
@@ -19,8 +20,17 @@ export async function POST(request: Request) {
   const raw = body as Record<string, unknown>;
   const name = typeof raw.name === "string" ? raw.name.trim() : "";
   const phone = typeof raw.phone === "string" ? raw.phone.trim() : "";
-  const childNameGrade =
-    typeof raw.childNameGrade === "string" ? raw.childNameGrade.trim() : "";
+
+  // Prefer structured children[]; fall back to legacy childNameGrade
+  let children = normalizeChildren(raw.children);
+  if (children.length === 0) {
+    const legacy =
+      typeof raw.childNameGrade === "string" ? raw.childNameGrade.trim() : "";
+    if (legacy) {
+      children = [{ name: legacy, grade: "" }];
+    }
+  }
+
   const eventsRaw = Array.isArray(raw.events) ? raw.events : [];
   const requested = eventsRaw.filter(
     (v): v is string => typeof v === "string" && v.trim().length > 0
@@ -39,11 +49,31 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-  if (!childNameGrade) {
+  if (children.length === 0) {
     return NextResponse.json(
-      { error: "Child's name & grade is required." },
+      { error: "Add at least one child (name and grade)." },
       { status: 400 }
     );
+  }
+  if (children.length > MAX_CHILDREN) {
+    return NextResponse.json(
+      { error: `You can list up to ${MAX_CHILDREN} children.` },
+      { status: 400 }
+    );
+  }
+  for (let i = 0; i < children.length; i++) {
+    if (!children[i].name) {
+      return NextResponse.json(
+        { error: `Child ${i + 1}: name is required.` },
+        { status: 400 }
+      );
+    }
+    if (!children[i].grade) {
+      return NextResponse.json(
+        { error: `Child ${i + 1}: grade is required.` },
+        { status: 400 }
+      );
+    }
   }
   if (events.length === 0) {
     return NextResponse.json(
@@ -52,7 +82,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const data: SignupFormData = { name, phone, childNameGrade, events };
+  const data: SignupFormData = { name, phone, children, events };
   const eventLabels = await resolveEventLabels(events);
   const emailResult = await sendSignupNotification(data, eventLabels);
 
