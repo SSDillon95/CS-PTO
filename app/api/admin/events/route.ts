@@ -45,6 +45,7 @@ export async function PUT(request: Request) {
 
   try {
     let events: EventOption[];
+    let signupsUpdated: number | undefined;
 
     switch (raw.action) {
       case "add":
@@ -56,9 +57,12 @@ export async function PUT(request: Request) {
           active: raw.active,
         });
         break;
-      case "delete":
-        events = await deleteEvent(String(raw.id ?? ""));
+      case "delete": {
+        const result = await deleteEvent(String(raw.id ?? ""));
+        events = result.events;
+        signupsUpdated = result.signupsUpdated;
         break;
+      }
       case "move":
         if (raw.direction !== "up" && raw.direction !== "down") {
           return NextResponse.json(
@@ -78,7 +82,11 @@ export async function PUT(request: Request) {
         );
     }
 
-    return NextResponse.json({ ok: true, events });
+    return NextResponse.json({
+      ok: true,
+      events,
+      ...(signupsUpdated !== undefined ? { signupsUpdated } : {}),
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Update failed." },

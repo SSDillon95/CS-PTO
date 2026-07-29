@@ -177,12 +177,20 @@ export async function updateEvent(
   return saveEvents(events);
 }
 
-export async function deleteEvent(id: string): Promise<EventOption[]> {
+export async function deleteEvent(
+  id: string
+): Promise<{ events: EventOption[]; signupsUpdated: number }> {
   const events = await listEvents();
   const next = events.filter((e) => e.id !== id);
   if (next.length === events.length) throw new Error("Event not found.");
   if (next.length === 0) throw new Error("You must keep at least one event.");
-  return saveEvents(next);
+  const saved = await saveEvents(next);
+
+  // Also strip this event from every existing signup (admin delete = remove everywhere)
+  const { removeEventFromAllSignups } = await import("./signups-store");
+  const signupsUpdated = await removeEventFromAllSignups(id);
+
+  return { events: saved, signupsUpdated };
 }
 
 export async function moveEvent(

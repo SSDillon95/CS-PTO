@@ -214,6 +214,58 @@ export async function deleteSignup(id: string): Promise<boolean> {
   return result.changes > 0;
 }
 
+/**
+ * Strip a deleted event id (and its parallel label) from every signup.
+ * Returns how many signup rows were updated.
+ */
+export async function removeEventFromAllSignups(
+  eventId: string
+): Promise<number> {
+  const id = eventId.trim();
+  if (!id) return 0;
+
+  await ensureSchema();
+  const entries = await listSignups();
+  let updated = 0;
+
+  for (const entry of entries) {
+    if (!entry.events.includes(id)) continue;
+
+    const nextEvents: string[] = [];
+    const nextLabels: string[] = [];
+    for (let i = 0; i < entry.events.length; i++) {
+      if (entry.events[i] === id) continue;
+      nextEvents.push(entry.events[i]);
+      if (i < entry.eventLabels.length) {
+        nextLabels.push(entry.eventLabels[i]);
+      }
+    }
+
+    const eventsJson = JSON.stringify(nextEvents);
+    const labelsJson = JSON.stringify(nextLabels);
+
+    if (usesPostgres()) {
+      const sql = await pgSql();
+      await sql`
+        UPDATE pto_signups
+        SET events_json = ${eventsJson},
+            event_labels_json = ${labelsJson}
+        WHERE id = ${entry.id}
+      `;
+    } else {
+      const db = await getSqlite();
+      db.prepare(
+        `UPDATE pto_signups
+         SET events_json = ?, event_labels_json = ?
+         WHERE id = ?`
+      ).run(eventsJson, labelsJson, entry.id);
+    }
+    updated += 1;
+  }
+
+  return updated;
+}
+
 export function signupsToCsv(entries: SignupEntry[]): string {
   const headers = [
     "Name",

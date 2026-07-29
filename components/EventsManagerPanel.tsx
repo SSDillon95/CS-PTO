@@ -38,7 +38,13 @@ export default function EventsManagerPanel({
     void load();
   }, [load]);
 
-  async function runAction(body: Record<string, unknown>, successMsg: string) {
+  async function runAction(
+    body: Record<string, unknown>,
+    successMsg: string | ((json: {
+      events?: EventOption[];
+      signupsUpdated?: number;
+    }) => string)
+  ) {
     setBusy(true);
     try {
       const res = await fetch("/api/admin/events", {
@@ -48,11 +54,14 @@ export default function EventsManagerPanel({
       });
       const json = (await res.json()) as {
         events?: EventOption[];
+        signupsUpdated?: number;
         error?: string;
       };
       if (!res.ok) throw new Error(json.error || "Update failed.");
       setEvents(json.events || []);
-      onNotify("success", successMsg);
+      const message =
+        typeof successMsg === "function" ? successMsg(json) : successMsg;
+      onNotify("success", message);
     } catch (error) {
       onNotify("error", (error as Error).message);
     } finally {
@@ -100,12 +109,16 @@ export default function EventsManagerPanel({
   async function handleDelete(event: EventOption) {
     if (
       !confirm(
-        `Delete “${event.label}” from the form? You must keep at least one event.`
+        `Delete “${event.label}”?\n\nThis removes it from the public form and from every volunteer who already signed up for it. You must keep at least one event.`
       )
     ) {
       return;
     }
-    await runAction({ action: "delete", id: event.id }, "Event deleted.");
+    await runAction({ action: "delete", id: event.id }, (json) => {
+      const n = json.signupsUpdated ?? 0;
+      if (n === 0) return "Event deleted.";
+      return `Event deleted and removed from ${n} signup${n === 1 ? "" : "s"}.`;
+    });
   }
 
   const inputClass =
@@ -127,7 +140,7 @@ export default function EventsManagerPanel({
         </h2>
         <p className="mt-1 text-sm text-stone-500">
           These checkboxes appear under “Events to Help In” on the public signup
-          sheet. Changes show up immediately for new visitors.
+          sheet. Deleting an event also removes it from all existing signups.
         </p>
 
         <ul className="mt-5 space-y-3">
