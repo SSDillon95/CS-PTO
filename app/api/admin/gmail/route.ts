@@ -60,20 +60,26 @@ export async function PUT(request: Request) {
 
     // Default: save Gmail credentials
     const username = validateGmailUsername(String(raw.username ?? ""));
-    const passwordInput = String(raw.password ?? "").trim();
+    const { normalizeGmailAppPassword, resolveGmailCredentials } =
+      await import("@/lib/gmail-config");
+    const passwordInput = normalizeGmailAppPassword(
+      String(raw.password ?? "")
+    );
     const current = await getGmailSetupStatus();
 
     let password = passwordInput;
     if (!password && current.hasPassword) {
       // Keep existing password — re-read from saved config
-      const { resolveGmailCredentials } = await import("@/lib/gmail-config");
       const creds = await resolveGmailCredentials();
-      password = creds.password || "";
+      password = normalizeGmailAppPassword(creds.password || "");
     }
 
     if (!password) {
       return NextResponse.json(
-        { error: "Gmail password / App Password is required." },
+        {
+          error:
+            "Gmail App Password is required. Create one at myaccount.google.com/apppasswords (not your normal Gmail password).",
+        },
         { status: 400 }
       );
     }

@@ -295,17 +295,55 @@ export default function GmailSetupPanel({ onNotify }: GmailSetupPanelProps) {
           </span>
         </div>
 
-        <p className="mb-4 text-sm text-stone-500">
-          Connect a Gmail account to send form entries. Use a{" "}
-          <strong>Google App Password</strong> if 2-Step Verification is on
-          (Google Account → Security → App passwords).
-        </p>
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-semibold">Your normal Gmail password will not work.</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-amber-900/90">
+            <li>
+              Sign in to the{" "}
+              <strong>same Google account</strong> you enter below (personal
+              Gmail works best).
+            </li>
+            <li>
+              Turn on{" "}
+              <a
+                href="https://myaccount.google.com/signinoptions/two-step-verification"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold underline decoration-amber-400 underline-offset-2 hover:text-amber-950"
+              >
+                2-Step Verification
+              </a>
+              .
+            </li>
+            <li>
+              Create an{" "}
+              <a
+                href="https://myaccount.google.com/apppasswords"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold underline decoration-amber-400 underline-offset-2 hover:text-amber-950"
+              >
+                App Password
+              </a>{" "}
+              (name it “Dorsey PTO”). Google shows a 16-character code.
+            </li>
+            <li>
+              Paste that App Password below — not the password you use to sign
+              in to Gmail.
+            </li>
+          </ol>
+          <p className="mt-2 text-xs text-amber-900/80">
+            School / Workspace accounts (e.g. @itawambacountyschools.com) often
+            block App Passwords. Use a personal @gmail.com account for sending
+            instead.
+          </p>
+        </div>
 
         <form onSubmit={handleSaveGmail} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-600">
-                Gmail address
+                Gmail address (sender)
               </span>
               <input
                 type="email"
@@ -319,7 +357,7 @@ export default function GmailSetupPanel({ onNotify }: GmailSetupPanelProps) {
             </label>
             <div className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-600">
-                Password / App Password
+                Google App Password (16 characters)
               </span>
               <div className="relative">
                 <input
@@ -328,12 +366,13 @@ export default function GmailSetupPanel({ onNotify }: GmailSetupPanelProps) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={
                     status?.hasPassword
-                      ? "Leave blank to keep current password"
-                      : "App password"
+                      ? "Leave blank to keep current App Password"
+                      : "xxxx xxxx xxxx xxxx"
                   }
-                  className={`${inputClass} pr-16`}
+                  className={`${inputClass} pr-16 font-mono tracking-wide`}
                   required={!status?.hasPassword}
                   autoComplete="new-password"
+                  spellCheck={false}
                 />
                 <button
                   type="button"
@@ -344,6 +383,9 @@ export default function GmailSetupPanel({ onNotify }: GmailSetupPanelProps) {
                   {showPassword ? "Hide" : "Show"}
                 </button>
               </div>
+              <p className="mt-1 text-xs text-stone-500">
+                Spaces are fine — they are removed automatically.
+              </p>
             </div>
           </div>
 

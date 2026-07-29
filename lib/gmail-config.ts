@@ -50,6 +50,11 @@ export function validateGmailUsername(username: string): string {
   return validateEmail(username);
 }
 
+/** Google shows App Passwords as "xxxx xxxx xxxx xxxx" — SMTP needs the 16 chars only. */
+export function normalizeGmailAppPassword(password: string): string {
+  return password.replace(/\s+/g, "").trim();
+}
+
 async function loadConfig(): Promise<EmailDistributionConfig> {
   await ensureSchema();
 
@@ -187,8 +192,13 @@ export async function saveGmailSettings(input: {
   password: string;
 }): Promise<GmailSetupStatus> {
   const username = validateGmailUsername(input.username);
-  const password = input.password.trim();
-  if (!password) throw new Error("Gmail password / App Password is required.");
+  const password = normalizeGmailAppPassword(input.password);
+  if (!password) throw new Error("Gmail App Password is required.");
+  if (password.length !== 16) {
+    throw new Error(
+      "Google App Passwords are exactly 16 characters. Create one at myaccount.google.com/apppasswords — do not use your normal Gmail password."
+    );
+  }
 
   const config = await loadConfig();
   config.gmail = {
